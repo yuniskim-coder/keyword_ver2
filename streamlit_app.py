@@ -1,12 +1,12 @@
 """
-본 프로그램 'RankChecker by L&C'는 Code by chaechae에 의해 개발된 소프트웨어입니다.
+본 프로그램 'RankChecker by L&C'는 chaechaeLab에 의해 개발된 소프트웨어입니다.
 해당 소스코드 및 실행 파일의 무단 복제, 배포, 역컴파일, 수정은
 저작권법 및 컴퓨터프로그램 보호법에 따라 엄격히 금지됩니다.
 
 무단 유포 및 상업적 이용 시 민형사상 법적 책임을 물을 수 있습니다.
 ※ 본 프로그램은 사용자 추적 및 차단 기능이 포함되어 있습니다.
 
-Copyright ⓒ 2025 Code by chaechae. All rights reserved.
+Copyright ⓒ 2025 chaechaeLab. All rights reserved.
 Unauthorized reproduction or redistribution is strictly prohibited. 
 """
 
@@ -18,6 +18,53 @@ import re
 from datetime import datetime, timedelta
 import time
 import pandas as pd
+
+# 네이버 초록색 스타일 CSS 추가
+st.markdown("""
+<style>
+/* 네이버 초록색 버튼 스타일 */
+.stButton > button {
+    background-color: #03C75A !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 16px !important;
+    transition: all 0.3s ease !important;
+}
+
+.stButton > button:hover {
+    background-color: #02B051 !important;
+    box-shadow: 0 2px 8px rgba(3, 199, 90, 0.3) !important;
+    transform: translateY(-1px) !important;
+}
+
+.stButton > button:active {
+    background-color: #029E47 !important;
+    transform: translateY(0px) !important;
+}
+
+/* 주요 검색 버튼에 특별한 스타일 적용 */
+div[data-testid="stButton"] button[kind="primary"] {
+    background: linear-gradient(135deg, #03C75A 0%, #02B051 100%) !important;
+    box-shadow: 0 4px 15px rgba(3, 199, 90, 0.25) !important;
+    font-size: 17px !important;
+    font-weight: 700 !important;
+    padding: 0.75rem 1.5rem !important;
+}
+
+div[data-testid="stButton"] button[kind="primary"]:hover {
+    background: linear-gradient(135deg, #02B051 0%, #029E47 100%) !important;
+    box-shadow: 0 6px 20px rgba(3, 199, 90, 0.4) !important;
+}
+
+/* 스피너 색상도 네이버 초록색으로 */
+.stSpinner > div {
+    border-top-color: #03C75A !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # 네이버 API 키 설정
 client_id = "tp2ypJeFL98lJyTSWLy5"
@@ -570,7 +617,7 @@ def main():
     )
     
     # 타이틀
-    st.title("🔍 네이버 순위 확인기 (by Code by chaechae)")
+    st.title("🔍 네이버 순위 확인기 (by chaechaeLab)")
     st.write("네이버 쇼핑에서 특정 판매처의 상품 순위를 확인하는 도구입니다.")
     
     # 사이드바에 사용법 안내
@@ -1047,7 +1094,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: gray; font-size: 12px;'>"
-        "ⓒ 2025 Code by chaechae. 무단 복제 및 배포 금지. All rights reserved."
+        "ⓒ 2025 chaechaeLab. 무단 복제 및 배포 금지. All rights reserved."
         "</div>", 
         unsafe_allow_html=True
     )
