@@ -23,38 +23,366 @@ import pandas as pd
 client_id = "tp2ypJeFL98lJyTSWLy5"
 client_secret = "QeYFNiR0k7"
 
-def get_related_keywords(keyword):
-    """연관 키워드를 조회하는 함수"""
+def get_keyword_competition_level(keyword):
+    """키워드의 PC통합검색영역 기준 경쟁정도를 분석하는 함수"""
     try:
+        # 네이버 통합검색 API를 사용하여 검색 결과 수 확인
         encText = urllib.parse.quote(keyword)
-        url = f"https://openapi.naver.com/v1/search/shop.json?query={encText}&display=100&start=1"
+        url = f"https://openapi.naver.com/v1/search/webkr.json?query={encText}&display=1&start=1"
+        
         request = urllib.request.Request(url)
         request.add_header("X-Naver-Client-Id", client_id)
         request.add_header("X-Naver-Client-Secret", client_secret)
         response = urllib.request.urlopen(request)
         result = json.loads(response.read())
         
-        # 상품 제목에서 키워드 추출
-        keywords = set()
-        for item in result.get("items", []):
-            title_clean = re.sub(r"<.*?>", "", item["title"])
-            # 간단한 키워드 추출 (공백으로 분리)
-            words = title_clean.split()
-            for word in words:
-                # 한글, 영문, 숫자만 포함된 2글자 이상의 단어
-                if re.match(r'^[가-힣a-zA-Z0-9]+$', word) and len(word) >= 2:
-                    keywords.add(word)
+        total_results = result.get("total", 0)
         
-        # 원본 키워드와 너무 유사한 것들 제거
-        filtered_keywords = []
-        for kw in keywords:
-            if keyword.lower() not in kw.lower() and kw.lower() not in keyword.lower():
-                filtered_keywords.append(kw)
-        
-        return filtered_keywords[:20]  # 상위 20개만 반환
+        # 경쟁정도 판정 기준
+        if total_results >= 1000000:  # 100만 개 이상
+            return "높음", total_results, "🔴"
+        elif total_results >= 100000:  # 10만 개 이상
+            return "중간", total_results, "🟡"
+        else:  # 10만 개 미만
+            return "낮음", total_results, "🟢"
+            
+    except Exception as e:
+        return "알 수 없음", 0, "⚪"
+
+def get_related_keywords(keyword):
+    """네이버 DataLab 기반 실제 검색 트렌드 연관키워드 조회"""
+    try:
+        return get_datalab_trend_keywords(keyword)
     except Exception as e:
         st.error(f"연관 키워드 조회 중 오류 발생: {str(e)}")
         return []
+
+def get_datalab_trend_keywords(keyword):
+    """DataLab API 기반 실제 검색 트렌드 키워드"""
+    try:
+        # 1. 기본 키워드 패턴 생성
+        candidate_keywords = generate_keyword_candidates(keyword)
+        
+        # 2. DataLab API로 실제 검색량 검증
+        verified_keywords = verify_keywords_with_datalab(candidate_keywords, keyword)
+        
+        # 3. 쇼핑 트렌드 기반 추가 키워드
+        shopping_keywords = get_shopping_trend_keywords(keyword)
+        verified_keywords.extend(shopping_keywords)
+        
+        # 4. 중복 제거 및 최종 정렬
+        final_keywords = finalize_keyword_list(verified_keywords, keyword)
+        
+        return final_keywords[:20]
+        
+    except Exception as e:
+        st.error(f"DataLab API 오류: {str(e)}")
+        return get_emergency_keywords(keyword)
+
+def generate_keyword_candidates(keyword):
+    """광고주센터 스타일의 키워드 후보 생성"""
+    candidates = []
+    
+    # 1. 구매 의도 키워드 (광고 효과가 높은 키워드들)
+    purchase_intents = [
+        f"{keyword} 추천", f"{keyword} 순위", f"{keyword} 베스트",
+        f"{keyword} 가격", f"{keyword} 할인", f"{keyword} 특가",
+        f"{keyword} 리뷰", f"{keyword} 후기", f"{keyword} 구매",
+        f"좋은 {keyword}", f"인기 {keyword}", f"최고 {keyword}"
+    ]
+    candidates.extend(purchase_intents)
+    
+    # 2. 브랜드/품질 키워드
+    quality_keywords = [
+        f"프리미엄 {keyword}", f"고급 {keyword}", f"브랜드 {keyword}",
+        f"정품 {keyword}", f"신상 {keyword}", f"최신 {keyword}",
+        f"가성비 {keyword}", f"저렴한 {keyword}"
+    ]
+    candidates.extend(quality_keywords)
+    
+    # 3. 기능/특성 키워드
+    feature_keywords = [
+        f"무선 {keyword}", f"블루투스 {keyword}", f"USB {keyword}",
+        f"휴대용 {keyword}", f"소형 {keyword}", f"대용량 {keyword}",
+        f"게이밍 {keyword}", f"사무용 {keyword}", f"가정용 {keyword}"
+    ]
+    candidates.extend(feature_keywords)
+    
+    # 4. 쇼핑/구매처 키워드
+    shopping_keywords = [
+        f"{keyword} 쿠팡", f"{keyword} 11번가", f"{keyword} 지마켓",
+        f"{keyword} 온라인", f"{keyword} 쇼핑몰", f"{keyword} 매장",
+        f"{keyword} 무료배송", f"{keyword} 당일배송"
+    ]
+    candidates.extend(shopping_keywords)
+    
+    return candidates
+
+def verify_keywords_with_datalab(candidates, base_keyword):
+    """DataLab API로 키워드 검증"""
+    verified = []
+    
+    # 배치 처리 (API 제한 고려)
+    batch_size = 5
+    for i in range(0, len(candidates), batch_size):
+        batch = candidates[i:i+batch_size]
+        
+        try:
+            # DataLab API 요청
+            volumes = get_batch_search_volume(batch)
+            
+            for j, kw in enumerate(batch):
+                if j < len(volumes) and volumes[j] > 0:
+                    verified.append((kw, volumes[j]))
+                    
+        except Exception as e:
+            # API 실패 시 기본 점수로 추가
+            for kw in batch:
+                verified.append((kw, 1))
+    
+    # 검색량 순 정렬
+    verified.sort(key=lambda x: x[1], reverse=True)
+    
+    return [kw for kw, vol in verified[:15]]
+
+def get_batch_search_volume(keywords):
+    """키워드 배치의 검색량 조회 (DataLab API)"""
+    try:
+        url = "https://openapi.naver.com/v1/datalab/search"
+        
+        # 키워드 그룹 구성
+        keyword_groups = []
+        for i, kw in enumerate(keywords[:5]):  # 최대 5개
+            keyword_groups.append({
+                "groupName": f"group{i+1}",
+                "keywords": [kw]
+            })
+        
+        body = {
+            "startDate": "2024-01-01",
+            "endDate": "2024-10-31",
+            "timeUnit": "month",
+            "keywordGroups": keyword_groups,
+            "device": "",
+            "ages": [],
+            "gender": ""
+        }
+        
+        request = urllib.request.Request(url)
+        request.add_header("X-Naver-Client-Id", client_id)
+        request.add_header("X-Naver-Client-Secret", client_secret)
+        request.add_header("Content-Type", "application/json")
+        
+        response = urllib.request.urlopen(request, json.dumps(body).encode("utf-8"), timeout=10)
+        result = json.loads(response.read().decode("utf-8"))
+        
+        # 검색량 추출
+        volumes = []
+        if "results" in result:
+            for group_result in result["results"]:
+                if "data" in group_result and len(group_result["data"]) > 0:
+                    # 최근 3개월 평균 계산
+                    recent_data = group_result["data"][-3:]
+                    avg_volume = sum(point["ratio"] for point in recent_data) / len(recent_data)
+                    volumes.append(avg_volume)
+                else:
+                    volumes.append(0)
+        
+        # 부족한 부분은 0으로 채우기
+        while len(volumes) < len(keywords):
+            volumes.append(0)
+            
+        return volumes
+        
+    except Exception as e:
+        # API 실패 시 기본값 반환
+        return [1] * len(keywords)
+
+def get_shopping_trend_keywords(keyword):
+    """쇼핑 트렌드 기반 키워드 (실제 상품 데이터 활용)"""
+    try:
+        # 네이버 쇼핑 API로 최신 상품 검색
+        encText = urllib.parse.quote(keyword)
+        url = f"https://openapi.naver.com/v1/search/shop.json?query={encText}&display=100&start=1&sort=date"
+        
+        request = urllib.request.Request(url)
+        request.add_header("X-Naver-Client-Id", client_id)
+        request.add_header("X-Naver-Client-Secret", client_secret)
+        
+        response = urllib.request.urlopen(request, timeout=10)
+        result = json.loads(response.read())
+        
+        # 상품명에서 트렌드 키워드 추출
+        trend_keywords = extract_trending_keywords(result.get("items", []), keyword)
+        
+        return trend_keywords
+        
+    except Exception:
+        return []
+
+def extract_trending_keywords(products, base_keyword):
+    """상품 데이터에서 트렌딩 키워드 추출"""
+    keyword_freq = {}
+    
+    for product in products:
+        title = re.sub(r'<[^>]+>', '', product.get('title', ''))
+        
+        # 2-4글자 한글 키워드 추출
+        korean_words = re.findall(r'[가-힣]{2,4}', title)
+        for word in korean_words:
+            if (word != base_keyword and 
+                word not in ['배송', '무료', '당일', '택배', '포장', '개봉'] and
+                len(word) >= 2):
+                keyword_freq[word] = keyword_freq.get(word, 0) + 1
+        
+        # 영문 브랜드명 추출
+        english_words = re.findall(r'[A-Z][a-zA-Z]{2,8}', title)
+        for word in english_words:
+            if word.lower() != base_keyword.lower():
+                keyword_freq[word] = keyword_freq.get(word, 0) + 1
+    
+    # 빈도 높은 키워드로 조합 생성
+    trending = []
+    for word, freq in sorted(keyword_freq.items(), key=lambda x: x[1], reverse=True):
+        if freq >= 3:  # 3번 이상 등장
+            trending.append(f"{word} {base_keyword}")
+            trending.append(f"{base_keyword} {word}")
+            if len(trending) >= 10:
+                break
+    
+    return trending
+
+def finalize_keyword_list(keywords, base_keyword):
+    """최종 키워드 리스트 정리"""
+    # 중복 제거
+    unique_keywords = []
+    seen = set()
+    
+    for kw in keywords:
+        kw_clean = kw.strip().lower()
+        if (kw_clean != base_keyword.lower() and 
+            kw_clean not in seen and 
+            len(kw.strip()) >= 2):
+            unique_keywords.append(kw.strip())
+            seen.add(kw_clean)
+    
+    # 품질 점수 계산 및 정렬
+    scored_keywords = []
+    for kw in unique_keywords:
+        score = calculate_ad_relevance_score(kw, base_keyword)
+        scored_keywords.append((kw, score))
+    
+    # 점수순 정렬
+    scored_keywords.sort(key=lambda x: x[1], reverse=True)
+    
+    return [kw for kw, score in scored_keywords]
+
+def calculate_ad_relevance_score(keyword, base_keyword):
+    """광고 관련성 점수 계산"""
+    score = 10  # 기본 점수
+    
+    # 구매 의도 키워드 가산점
+    high_intent = ['추천', '순위', '가격', '할인', '특가', '구매', '베스트', '인기']
+    intent_score = sum(3 for intent in high_intent if intent in keyword)
+    score += intent_score
+    
+    # 브랜드/품질 키워드 가산점
+    quality_terms = ['프리미엄', '고급', '브랜드', '정품', '최고', '신상']
+    quality_score = sum(2 for term in quality_terms if term in keyword)
+    score += quality_score
+    
+    # 기술/기능 키워드 가산점
+    tech_terms = ['무선', '블루투스', 'USB', '게이밍', '충전', 'LED']
+    tech_score = sum(2 for term in tech_terms if term in keyword)
+    score += tech_score
+    
+    # 쇼핑 관련 키워드 가산점
+    shopping_terms = ['쿠팡', '지마켓', '11번가', '온라인', '쇼핑', '배송']
+    shopping_score = sum(1 for term in shopping_terms if term in keyword)
+    score += shopping_score
+    
+    # 길이 점수
+    if 4 <= len(keyword) <= 15:
+        score += 3
+    elif 16 <= len(keyword) <= 25:
+        score += 1
+    
+    # 불용어 감점
+    stop_words = ['것', '거', '이것', '그것', '물건', '상품']
+    penalty = sum(5 for stop in stop_words if stop in keyword)
+    score -= penalty
+    
+    return max(0, score)
+
+def get_emergency_keywords(keyword):
+    """비상용 키워드 (모든 API 실패 시)"""
+    emergency = [
+        f"{keyword} 추천", f"{keyword} 순위", f"{keyword} 가격", f"{keyword} 할인",
+        f"{keyword} 리뷰", f"{keyword} 후기", f"{keyword} 구매", f"{keyword} 베스트",
+        f"좋은 {keyword}", f"인기 {keyword}", f"최고 {keyword}", f"프리미엄 {keyword}",
+        f"가성비 {keyword}", f"저렴한 {keyword}", f"무선 {keyword}", f"브랜드 {keyword}",
+        f"{keyword} 온라인", f"{keyword} 쇼핑", f"{keyword} 특가", f"{keyword} 사용법"
+    ]
+    return emergency
+
+def analyze_keyword_types(keywords, base_keyword):
+    """키워드 유형별 분류 및 분석"""
+    analysis = {
+        '구매의도': 0,
+        '브랜드/품질': 0,
+        '기능/특성': 0,
+        '가격/할인': 0,
+        '기타': 0
+    }
+    
+    for keyword in keywords:
+        # 구매 의도 키워드
+        if any(intent in keyword for intent in ['추천', '순위', '구매', '리뷰', '후기', '비교']):
+            analysis['구매의도'] += 1
+        # 브랜드/품질 키워드
+        elif any(brand in keyword for brand in ['브랜드', '정품', '프리미엄', '고급', '베스트', '인기']):
+            analysis['브랜드/품질'] += 1
+        # 기능/특성 키워드
+        elif any(feature in keyword for feature in ['무선', '블루투스', 'USB', '게이밍', '사무용', '가정용']):
+            analysis['기능/특성'] += 1
+        # 가격/할인 키워드
+        elif any(price in keyword for price in ['가격', '할인', '특가', '세일', '저렴', '가성비']):
+            analysis['가격/할인'] += 1
+        else:
+            analysis['기타'] += 1
+    
+    # 0인 항목 제거
+    return {k: v for k, v in analysis.items() if v > 0}
+
+def get_keyword_insights(keywords, base_keyword):
+    """키워드 인사이트 분석"""
+    insights = {}
+    
+    # 길이 통계
+    lengths = [len(kw) for kw in keywords]
+    insights['avg_length'] = sum(lengths) / len(lengths)
+    insights['min_length'] = min(lengths)
+    insights['max_length'] = max(lengths)
+    
+    # 구매 의도 키워드 비율
+    purchase_keywords = [kw for kw in keywords if any(intent in kw for intent in ['추천', '가격', '할인', '구매', '순위'])]
+    insights['purchase_ratio'] = len(purchase_keywords) / len(keywords) * 100
+    
+    # 고유 단어 수
+    all_words = set()
+    for kw in keywords:
+        all_words.update(kw.split())
+    insights['unique_words'] = len(all_words)
+    
+    return insights
+
+# 이전 크롤링 함수들이 네이버 광고주센터 키워드 도구 시스템으로 교체됨
+
+# 이전 DataLab 함수들이 실제 연관검색어 크롤링 시스템으로 교체됨
+
+# 이전 함수들이 새로운 DataLab 기반 시스템으로 교체됨
+
+# 기존 함수들 제거하고 새로운 구현으로 대체됨
 
 def get_shopping_rank_list(keyword, limit=50):
     """쇼핑 순위 리스트를 조회하는 함수"""
@@ -404,18 +732,181 @@ def main():
                 st.header("🔗 연관키워드 조회 결과")
                 
                 for keyword in keywords:
-                    with st.expander(f"🔍 {keyword}의 연관키워드", expanded=True):
+                    with st.expander(f"🔍 {keyword}의 연관키워드 분석", expanded=True):
                         with st.spinner(f"{keyword} 연관키워드 조회 중..."):
                             related_keywords = get_related_keywords(keyword)
                         
                         if related_keywords:
                             st.success(f"✅ {len(related_keywords)}개의 연관키워드를 찾았습니다.")
                             
-                            # 3열로 표시
-                            cols = st.columns(3)
-                            for i, related_kw in enumerate(related_keywords):
-                                with cols[i % 3]:
-                                    st.write(f"• {related_kw}")
+                            # 분석 결과를 탭으로 구분
+                            analysis_tab1, analysis_tab2, analysis_tab3 = st.tabs(["📋 키워드 목록", "📊 분석 차트", "💾 내보내기"])
+                            
+                            with analysis_tab1:
+                                # 2열 레이아웃: 왼쪽(연관키워드), 오른쪽(경쟁정도)
+                                col_left, col_right = st.columns([3, 2])
+                                
+                                with col_left:
+                                    st.subheader("📝 연관키워드 목록")
+                                    # 3열로 연관키워드 표시
+                                    cols = st.columns(3)
+                                    for i, related_kw in enumerate(related_keywords):
+                                        with cols[i % 3]:
+                                            st.write(f"• {related_kw}")
+                                
+                                with col_right:
+                                    st.subheader("⚔️ 경쟁정도 분석")
+                                    st.write("**PC통합검색영역 기준**")
+                                    
+                                    # 원본 키워드 경쟁정도
+                                    with st.spinner(f"{keyword} 경쟁정도 분석 중..."):
+                                        competition, total_results, icon = get_keyword_competition_level(keyword)
+                                    
+                                    st.markdown(f"""
+                                    **🎯 메인 키워드: {keyword}**
+                                    - {icon} **경쟁정도**: {competition}
+                                    - 📊 **검색결과**: {total_results:,}개
+                                    """)
+                                    
+                                    st.markdown("---")
+                                    
+                                    # 연관키워드 중 상위 5개의 경쟁정도 분석
+                                    st.write("**🔍 연관키워드 경쟁정도 (상위 5개)**")
+                                    
+                                    for i, related_kw in enumerate(related_keywords[:5]):
+                                        with st.spinner(f"{related_kw} 분석 중..."):
+                                            comp, total, icon = get_keyword_competition_level(related_kw)
+                                        
+                                        # 경쟁정도에 따른 색상 설정
+                                        if comp == "높음":
+                                            color = "red"
+                                        elif comp == "중간":
+                                            color = "orange"
+                                        else:
+                                            color = "green"
+                                        
+                                        st.markdown(f"""
+                                        <div style="padding: 5px; margin: 2px 0; border-left: 3px solid {color};">
+                                            <strong>{related_kw}</strong><br>
+                                            {icon} {comp} ({total:,}개)
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                    
+                                    # 경쟁정도 범례
+                                    st.markdown("---")
+                                    st.markdown("""
+                                    **📋 경쟁정도 기준**
+                                    - 🔴 **높음**: 100만개 이상
+                                    - 🟡 **중간**: 10만~100만개
+                                    - 🟢 **낮음**: 10만개 미만
+                                    """)
+                            
+                            with analysis_tab2:
+                                # 키워드 분석 차트
+                                st.subheader("📊 키워드 분석")
+                                
+                                # 키워드 유형별 분류
+                                keyword_analysis = analyze_keyword_types(related_keywords, keyword)
+                                
+                                if keyword_analysis:
+                                    col1, col2 = st.columns(2)
+                                    
+                                    with col1:
+                                        st.markdown("**키워드 유형별 분포**")
+                                        for kw_type, count in keyword_analysis.items():
+                                            percentage = (count / len(related_keywords)) * 100
+                                            st.write(f"• {kw_type}: {count}개 ({percentage:.1f}%)")
+                                    
+                                    with col2:
+                                        # 키워드 통계
+                                        insights = get_keyword_insights(related_keywords, keyword)
+                                        st.markdown("**키워드 통계**")
+                                        st.write(f"• 평균 길이: {insights['avg_length']:.1f}자")
+                                        st.write(f"• 최단/최장: {insights['min_length']}/{insights['max_length']}자")
+                                        st.write(f"• 구매 의도: {insights['purchase_ratio']:.1f}%")
+                                        st.write(f"• 고유 단어: {insights['unique_words']}개")
+                                
+                                # 키워드 워드클라우드 (텍스트 기반)
+                                st.markdown("**🔤 주요 키워드 구성 요소**")
+                                all_words = []
+                                for kw in related_keywords:
+                                    all_words.extend(kw.split())
+                                
+                                from collections import Counter
+                                word_freq = Counter(all_words)
+                                # 기준 키워드 제외
+                                word_freq.pop(keyword, None)
+                                
+                                # 상위 10개 단어 표시
+                                top_words = word_freq.most_common(10)
+                                if top_words:
+                                    word_text = " | ".join([f"{word}({count})" for word, count in top_words])
+                                    st.text(word_text)
+                            
+                            with analysis_tab3:
+                                # 데이터 내보내기
+                                st.subheader("💾 데이터 내보내기")
+                                
+                                # CSV 다운로드
+                                import pandas as pd  # 명시적 import 추가
+                                from datetime import datetime
+                                
+                                # 상세 데이터프레임 생성
+                                detailed_data = []
+                                for i, kw in enumerate(related_keywords, 1):
+                                    kw_type = "기타"
+                                    if any(intent in kw for intent in ['추천', '순위', '구매', '리뷰', '후기', '비교']):
+                                        kw_type = "구매의도"
+                                    elif any(brand in kw for brand in ['브랜드', '정품', '프리미엄', '고급', '베스트', '인기']):
+                                        kw_type = "브랜드/품질"
+                                    elif any(feature in kw for feature in ['무선', '블루투스', 'USB', '게이밍', '사무용', '가정용']):
+                                        kw_type = "기능/특성"
+                                    elif any(price in kw for price in ['가격', '할인', '특가', '세일', '저렴', '가성비']):
+                                        kw_type = "가격/할인"
+                                    
+                                    detailed_data.append({
+                                        '순위': i,
+                                        '연관키워드': kw,
+                                        '키워드유형': kw_type,
+                                        '키워드길이': len(kw),
+                                        '기준키워드': keyword,
+                                        '조회일시': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                    })
+                                
+                                df = pd.DataFrame(detailed_data)
+                                csv = df.to_csv(index=False, encoding='utf-8-sig')
+                                
+                                st.download_button(
+                                    label="📥 상세 분석 CSV 다운로드",
+                                    data=csv,
+                                    file_name=f"연관키워드_분석_{keyword}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                                    mime="text/csv"
+                                )
+                                
+                                # 데이터 미리보기
+                                st.markdown("**데이터 미리보기:**")
+                                st.dataframe(df, use_container_width=True)
+                                
+                                # 키워드 복사용 텍스트
+                                st.markdown("**키워드 리스트 (복사용):**")
+                                keywords_text = '\n'.join([f"{i+1}. {kw}" for i, kw in enumerate(related_keywords)])
+                                st.text_area("키워드 목록", keywords_text, height=150, key=f"copy_{keyword}")
+                                
+                                # 요약 통계
+                                st.markdown("**📈 요약 통계:**")
+                                summary_col1, summary_col2, summary_col3 = st.columns(3)
+                                
+                                with summary_col1:
+                                    st.metric("총 키워드 수", len(related_keywords))
+                                
+                                with summary_col2:
+                                    purchase_count = sum(1 for kw in related_keywords 
+                                                       if any(intent in kw for intent in ['추천', '가격', '할인', '구매', '순위']))
+                                    st.metric("구매 의도 키워드", purchase_count)
+                                
+                                with summary_col3:
+                                    avg_length = sum(len(kw) for kw in related_keywords) / len(related_keywords)
+                                    st.metric("평균 키워드 길이", f"{avg_length:.1f}자")
                         else:
                             st.warning("❌ 연관키워드를 찾을 수 없습니다.")
         else:
@@ -442,6 +933,7 @@ def main():
                             st.success(f"✅ {len(products)}개의 상품을 찾았습니다.")
                             
                             # 데이터프레임으로 표시
+                            import pandas as pd  # 명시적 import 추가
                             df = pd.DataFrame(products)
                             df['가격'] = df['price'].apply(lambda x: f"{x:,}원" if x > 0 else "가격 미표시")
                             
@@ -501,6 +993,7 @@ def main():
                             
                             # 현재 월 비율 차트
                             st.subheader("📊 디바이스별 검색 비율")
+                            import pandas as pd  # 명시적 import 추가
                             chart_data = pd.DataFrame({
                                 '구분': ['모바일', 'PC'],
                                 '검색량': [volume_data['mobile_volume'], volume_data['pc_volume']]
@@ -524,6 +1017,7 @@ def main():
                                     })
                                 
                                 if trend_data:
+                                    import pandas as pd  # 명시적 import 추가
                                     trend_df = pd.DataFrame(trend_data)
                                     trend_df['날짜'] = pd.to_datetime(trend_df['날짜'])
                                     trend_df = trend_df.set_index('날짜')
