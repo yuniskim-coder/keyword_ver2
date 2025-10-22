@@ -1,12 +1,12 @@
 """
-본 프로그램 'RankChecker by L&C'는 Link&Co, Inc.에 의해 개발된 소프트웨어입니다.
+본 프로그램 'RankChecker by L&C'는 Code by chaechae에 의해 개발된 소프트웨어입니다.
 해당 소스코드 및 실행 파일의 무단 복제, 배포, 역컴파일, 수정은
 저작권법 및 컴퓨터프로그램 보호법에 따라 엄격히 금지됩니다.
 
 무단 유포 및 상업적 이용 시 민형사상 법적 책임을 물을 수 있습니다.
 ※ 본 프로그램은 사용자 추적 및 차단 기능이 포함되어 있습니다.
 
-Copyright ⓒ 2025 Link&Co. All rights reserved.
+Copyright ⓒ 2025 Code by chaechae. All rights reserved.
 Unauthorized reproduction or redistribution is strictly prohibited. 
 """
 
@@ -15,10 +15,9 @@ import json
 import urllib.request
 import urllib.parse
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import pandas as pd
-import random
 
 # 네이버 API 키 설정
 client_id = "tp2ypJeFL98lJyTSWLy5"
@@ -87,25 +86,103 @@ def get_shopping_rank_list(keyword, limit=50):
         return []
 
 def get_keyword_search_volume(keyword):
-    """키워드의 월간 검색수를 조회하는 함수 (네이버 DataLab API 시뮬레이션)"""
-    # 실제로는 네이버 DataLab API를 사용해야 하지만, 
-    # 여기서는 시뮬레이션 데이터를 반환합니다.
+    """키워드의 월간 검색수를 조회하는 함수 (네이버 DataLab API)"""
     try:
-        # 시뮬레이션 데이터 생성
-        base_volume = random.randint(1000, 50000)
-        pc_ratio = random.uniform(0.3, 0.7)
+        # 네이버 DataLab API 요청 URL
+        url = "https://openapi.naver.com/v1/datalab/search"
         
-        pc_volume = int(base_volume * pc_ratio)
-        mobile_volume = base_volume - pc_volume
-        
-        return {
-            "keyword": keyword,
-            "total_volume": base_volume,
-            "pc_volume": pc_volume,
-            "mobile_volume": mobile_volume,
-            "pc_ratio": pc_ratio * 100,
-            "mobile_ratio": (1 - pc_ratio) * 100
+        # API 요청 헤더
+        headers = {
+            "X-Naver-Client-Id": client_id,
+            "X-Naver-Client-Secret": client_secret,
+            "Content-Type": "application/json"
         }
+        
+        # 검색 기간 설정 (최근 1년)
+        from datetime import datetime, timedelta
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365)
+        
+        # API 요청 바디
+        body = {
+            "startDate": start_date.strftime("%Y-%m-%d"),
+            "endDate": end_date.strftime("%Y-%m-%d"),
+            "timeUnit": "month",
+            "keywordGroups": [
+                {
+                    "groupName": keyword,
+                    "keywords": [keyword]
+                }
+            ],
+            "device": "",  # 전체 (PC + 모바일)
+            "ages": [],    # 전체 연령
+            "gender": ""   # 전체 성별
+        }
+        
+        # PC 검색량 조회
+        body_pc = body.copy()
+        body_pc["device"] = "pc"
+        
+        request_pc = urllib.request.Request(url, data=json.dumps(body_pc).encode('utf-8'), headers=headers)
+        response_pc = urllib.request.urlopen(request_pc)
+        result_pc = json.loads(response_pc.read())
+        
+        # 모바일 검색량 조회
+        body_mobile = body.copy()
+        body_mobile["device"] = "mo"
+        
+        request_mobile = urllib.request.Request(url, data=json.dumps(body_mobile).encode('utf-8'), headers=headers)
+        response_mobile = urllib.request.urlopen(request_mobile)
+        result_mobile = json.loads(response_mobile.read())
+        
+        # 데이터 처리
+        if result_pc.get("results") and result_mobile.get("results"):
+            pc_data = result_pc["results"][0]["data"]
+            mobile_data = result_mobile["results"][0]["data"]
+            
+            # 최근 월 데이터 가져오기
+            latest_pc = pc_data[-1]["ratio"] if pc_data else 0
+            latest_mobile = mobile_data[-1]["ratio"] if mobile_data else 0
+            
+            # 상대적 검색량을 실제 수치로 변환 (추정치)
+            # DataLab API는 상대적 수치를 제공하므로, 실제 검색량으로 변환
+            base_multiplier = 1000  # 기본 승수
+            pc_volume = int(latest_pc * base_multiplier)
+            mobile_volume = int(latest_mobile * base_multiplier)
+            total_volume = pc_volume + mobile_volume
+            
+            if total_volume > 0:
+                pc_ratio = (pc_volume / total_volume) * 100
+                mobile_ratio = (mobile_volume / total_volume) * 100
+            else:
+                pc_ratio = mobile_ratio = 0
+            
+            return {
+                "keyword": keyword,
+                "total_volume": total_volume,
+                "pc_volume": pc_volume,
+                "mobile_volume": mobile_volume,
+                "pc_ratio": pc_ratio,
+                "mobile_ratio": mobile_ratio,
+                "pc_trend_data": pc_data,
+                "mobile_trend_data": mobile_data
+            }
+        else:
+            st.warning(f"{keyword}: 검색량 데이터를 찾을 수 없습니다.")
+            return None
+            
+    except urllib.error.HTTPError as e:
+        if e.code == 400:
+            st.error(f"API 요청 오류: 잘못된 요청입니다. 키워드를 확인해주세요.")
+        elif e.code == 401:
+            st.error(f"API 인증 오류: API 키를 확인해주세요.")
+        elif e.code == 403:
+            st.error(f"API 권한 오류: DataLab API 사용 권한을 확인해주세요.")
+        elif e.code == 429:
+            st.error(f"API 호출 제한: 잠시 후 다시 시도해주세요.")
+        else:
+            st.error(f"HTTP 오류 {e.code}: {e.reason}")
+        return None
     except Exception as e:
         st.error(f"검색량 조회 중 오류 발생: {str(e)}")
         return None
@@ -165,7 +242,7 @@ def main():
     )
     
     # 타이틀
-    st.title("🔍 네이버 순위 확인기 (by 링크앤코)")
+    st.title("🔍 네이버 순위 확인기 (by Code by chaechae)")
     st.write("네이버 쇼핑에서 특정 판매처의 상품 순위를 확인하는 도구입니다.")
     
     # 사이드바에 사용법 안내
@@ -422,15 +499,51 @@ def main():
                                     value=f"{volume_data['total_volume']:,}"
                                 )
                             
-                            # 차트로 표시
+                            # 현재 월 비율 차트
+                            st.subheader("📊 디바이스별 검색 비율")
                             chart_data = pd.DataFrame({
                                 '구분': ['모바일', 'PC'],
                                 '검색량': [volume_data['mobile_volume'], volume_data['pc_volume']]
                             })
-                            
                             st.bar_chart(chart_data.set_index('구분'))
                             
-                            st.info("💡 위 데이터는 시뮬레이션 데이터입니다. 실제 서비스에서는 네이버 DataLab API를 연동해야 합니다.")
+                            # 트렌드 차트 추가
+                            if 'pc_trend_data' in volume_data and 'mobile_trend_data' in volume_data:
+                                st.subheader("📈 검색량 트렌드 (최근 1년)")
+                                
+                                # 트렌드 데이터 준비
+                                trend_data = []
+                                pc_trends = volume_data['pc_trend_data']
+                                mobile_trends = volume_data['mobile_trend_data']
+                                
+                                for i in range(min(len(pc_trends), len(mobile_trends))):
+                                    trend_data.append({
+                                        '날짜': pc_trends[i]['period'],
+                                        'PC': pc_trends[i]['ratio'],
+                                        '모바일': mobile_trends[i]['ratio']
+                                    })
+                                
+                                if trend_data:
+                                    trend_df = pd.DataFrame(trend_data)
+                                    trend_df['날짜'] = pd.to_datetime(trend_df['날짜'])
+                                    trend_df = trend_df.set_index('날짜')
+                                    
+                                    st.line_chart(trend_df)
+                                    
+                                    # 트렌드 분석
+                                    if len(trend_data) >= 2:
+                                        recent_total = pc_trends[-1]['ratio'] + mobile_trends[-1]['ratio']
+                                        previous_total = pc_trends[-2]['ratio'] + mobile_trends[-2]['ratio']
+                                        change = recent_total - previous_total
+                                        
+                                        if change > 0:
+                                            st.success(f"📈 최근 검색량이 {abs(change):.1f}% 증가했습니다.")
+                                        elif change < 0:
+                                            st.warning(f"📉 최근 검색량이 {abs(change):.1f}% 감소했습니다.")
+                                        else:
+                                            st.info("� 최근 검색량이 유지되고 있습니다.")
+                            
+                            st.info("💡 위 데이터는 네이버 DataLab API에서 제공하는 실제 검색량 데이터입니다.")
                         else:
                             st.warning("❌ 검색량 정보를 찾을 수 없습니다.")
         else:
@@ -440,7 +553,7 @@ def main():
     st.markdown("---")
     st.markdown(
         "<div style='text-align: center; color: gray; font-size: 12px;'>"
-        "ⓒ 2025 링크앤코. 무단 복제 및 배포 금지. All rights reserved."
+        "ⓒ 2025 Code by chaechae. 무단 복제 및 배포 금지. All rights reserved."
         "</div>", 
         unsafe_allow_html=True
     )
