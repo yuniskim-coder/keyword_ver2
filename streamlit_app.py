@@ -18,6 +18,24 @@ import re
 from datetime import datetime, timedelta
 import time
 import pandas as pd
+import hashlib
+
+# 세션 상태 초기화 - 강제 리셋
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'username' not in st.session_state:
+    st.session_state.username = None
+
+# 세션 강제 초기화 (개발용)
+if 'force_reset' not in st.session_state:
+    st.session_state.force_reset = True
+    st.session_state.logged_in = False
+    st.session_state.username = None
+
+# 로그인 자격 증명 (실제 운영환경에서는 데이터베이스나 외부 인증 시스템 사용 권장)
+VALID_CREDENTIALS = {
+    "master": "56tyghbn"
+}
 
 # 네이버 초록색 스타일 CSS 추가
 st.markdown("""
@@ -63,12 +81,94 @@ div[data-testid="stButton"] button[kind="primary"]:hover {
 .stSpinner > div {
     border-top-color: #03C75A !important;
 }
+
+/* 로그인 페이지 스타일 */
+.login-container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e0e0e0;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    color: #333;
+}
+
+.login-welcome {
+    background: linear-gradient(135deg, #03C75A, #02B051);
+    color: white;
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+    margin-bottom: 1rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # 네이버 API 키 설정
 client_id = "tp2ypJeFL98lJyTSWLy5"
 client_secret = "QeYFNiR0k7"
+
+def login_page():
+    """로그인 페이지"""
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    
+    st.markdown('<div class="login-header">', unsafe_allow_html=True)
+    st.markdown("# 🔐 chaechaeLab")
+    st.markdown("### 마케팅 도구 로그인")
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 로그인 폼
+    with st.form("login_form"):
+        username = st.text_input("사용자 ID", placeholder="아이디를 입력하세요")
+        password = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력하세요")
+        submit_button = st.form_submit_button("로그인", width="stretch")
+        
+        if submit_button:
+            if authenticate_user(username, password):
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.success("로그인 성공!")
+                st.rerun()
+            else:
+                st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # 도움말 정보
+    st.markdown("---")
+    st.markdown("**📱 chaechaeLab 마케팅 도구**")
+    st.markdown("- 네이버 쇼핑 순위 체크")
+    st.markdown("- 연관 키워드 분석")
+    st.markdown("- 쇼핑 랭킹 조회")
+    st.markdown("- 월간 검색량 분석")
+
+def authenticate_user(username, password):
+    """사용자 인증"""
+    return username in VALID_CREDENTIALS and VALID_CREDENTIALS[username] == password
+
+def logout():
+    """로그아웃"""
+    st.session_state.logged_in = False
+    st.session_state.username = None
+    st.rerun()
+
+def show_user_info():
+    """사용자 정보 표시 및 로그아웃 버튼"""
+    col1, col2 = st.columns([3, 1])
+    
+    with col1:
+        st.markdown(f'<div class="login-welcome">👋 환영합니다, {st.session_state.username}님!</div>', 
+                   unsafe_allow_html=True)
+    
+    with col2:
+        if st.button("로그아웃", key="logout_btn"):
+            logout()
 
 def get_keyword_competition_level(keyword):
     """키워드의 PC통합검색영역 기준 경쟁정도를 분석하는 함수"""
@@ -611,41 +711,57 @@ def get_top_ranked_product_by_mall(keyword, mall_name, progress_placeholder=None
 def main():
     # 페이지 설정
     st.set_page_config(
-        page_title="네이버 순위 확인기",
+        page_title="chaechaeLab 마케팅 도구",
         page_icon="🔍",
         layout="wide"
     )
     
+    # 세션 상태 강제 확인 및 초기화
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+    if 'username' not in st.session_state:
+        st.session_state.username = None
+    
+    # 디버그: 현재 로그인 상태 확인
+    # st.write(f"Debug: logged_in = {st.session_state.logged_in}")  # 테스트용
+    
+    # 로그인 확인 - 로그인되지 않았으면 로그인 페이지 표시
+    if not st.session_state.logged_in:
+        login_page()
+        return
+    
+    # 로그인된 사용자 정보 표시
+    show_user_info()
+    
     # 타이틀
-    st.title("🔍 네이버 순위 확인기 (by chaechaeLab)")
-    st.write("네이버 쇼핑에서 특정 판매처의 상품 순위를 확인하는 도구입니다.")
+    st.title("🔍 chaechaeLab 마케팅 도구")
+    st.write("네이버 기반 종합 마케팅 분석 도구입니다.")
     
     # 사이드바에 사용법 안내
     with st.sidebar:
         st.header("📖 사용법 안내")
         st.markdown("""
-        ### 🔍 네이버 순위 확인기 사용법
+        ### 🔍 chaechaeLab 마케팅 도구
         
-        1. **검색어 입력**: 
-           - 확인하고 싶은 키워드를 쉼표(,)로 구분하여 입력
-           - 최대 10개까지 입력 가능
-           - 예: `키보드, 마우스, 헤드셋`
+        **🎯 순위 확인기**
+        - 네이버 쇼핑에서 특정 판매처의 상품 순위 확인
+        - 최대 10개 키워드 동시 검색
+        - 1000위까지 정확한 순위 분석
         
-        2. **판매처명 입력**:
-           - 순위를 확인하고 싶은 쇼핑몰 이름 입력
-           - 정확한 이름일수록 정확한 결과 제공
-           - 예: `ABC스토어`, `XYZ몰`
+        **🔗 연관 키워드**
+        - 입력한 키워드와 관련된 검색어 추천
+        - 네이버 DataLab 기반 트렌드 분석
+        - 마케팅 전략 수립에 활용
         
-        3. **검색 실행**:
-           - 원하는 탭을 선택하고 버튼 클릭
-           - 네이버 쇼핑에서 1000위까지 검색
-           - 결과는 실시간으로 표시됩니다
+        **🛍️ 쇼핑 랭킹**
+        - 네이버 쇼핑 인기 상품 순위
+        - 카테고리별 TOP 상품 분석
+        - 시장 트렌드 파악
         
-        ### 📊 결과 해석
-        - **TOP 10**: 🥇 매우 좋은 순위
-        - **TOP 50**: 🥈 좋은 순위  
-        - **TOP 100**: 🥉 보통 순위
-        - **100위 이하**: 📉 개선 필요
+        **📈 월간 검색량**
+        - 키워드별 월간 검색 트렌드
+        - 시기별 검색량 변화 분석
+        - 데이터 기반 마케팅 계획 수립
         """)
     
     # 메인 영역에 입력 폼
@@ -932,7 +1048,7 @@ def main():
                                 
                                 # 데이터 미리보기
                                 st.markdown("**데이터 미리보기:**")
-                                st.dataframe(df, use_container_width=True)
+                                st.dataframe(df, width="stretch")
                                 
                                 # 키워드 복사용 텍스트
                                 st.markdown("**키워드 리스트 (복사용):**")
@@ -990,7 +1106,7 @@ def main():
                             
                             st.dataframe(
                                 display_df,
-                                use_container_width=True,
+                                width="stretch",
                                 hide_index=True
                             )
                         else:
