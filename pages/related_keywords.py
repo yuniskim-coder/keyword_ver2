@@ -244,7 +244,7 @@ def show_related_keywords():
                     })
                 
                 df = pd.DataFrame(table_data)
-                st.dataframe(df, width=None, hide_index=True)
+                st.dataframe(df, width="stretch", hide_index=True)
                 
                 # 차트 분석
                 st.markdown("### 📊 키워드 분석 차트")

@@ -21,6 +21,7 @@ from pages.rank_checker import show_rank_checker
 from pages.related_keywords import show_related_keywords
 from pages.shopping_ranking import show_shopping_ranking
 from pages.keyword_analysis import show_keyword_analysis
+from pages.content_rewriter import show_content_rewriter
 from utils.styles import apply_custom_css, show_footer
 
 
@@ -68,6 +69,9 @@ def show_sidebar():
             
         if st.button("🎯 키워드 분석", width="stretch"):
             st.session_state.current_page = 'keyword_analysis'
+            
+        if st.button("🤖 AI 카피라이터", width="stretch"):
+            st.session_state.current_page = 'content_rewriter'
         
         st.markdown("---")
         
@@ -76,78 +80,12 @@ def show_sidebar():
             'rank_checker': '🎯 순위 확인',
             'related_keywords': '🔗 연관키워드 조회',
             'shopping_ranking': '📊 쇼핑 순위 리스트',
-            'keyword_analysis': '🎯 키워드 분석'
+            'keyword_analysis': '🎯 키워드 분석',
+            'content_rewriter': '🤖 AI 카피라이터'
         }
         
         current_page = st.session_state.get('current_page', 'rank_checker')
         st.info(f"**현재 페이지**: {current_page_names.get(current_page, '알 수 없음')}")
-        
-        st.markdown("---")
-        
-        # 전체 메뉴 기능 개요
-        st.subheader("🛠️ 제공 기능")
-        
-        # 순위 확인
-        st.markdown("### 🎯 순위 확인")
-        st.markdown("""
-        **📋 주요 기능**
-        - 네이버 쇼핑에서 특정 판매처의 상품 순위 확인
-        - 최대 10개 키워드 동시 검색 가능
-        - 1~1000위까지 정확한 순위 분석
-        
-        **🎯 활용법**
-        - 경쟁사 분석
-        - 자사 상품 위치 파악
-        - 마케팅 효과 측정
-        """)
-        
-        st.markdown("---")
-        
-        # 연관키워드 조회
-        st.markdown("### 🔗 연관키워드 조회")
-        st.markdown("""
-        **📋 주요 기능**
-        - 파워링크 캠페인 기반 연관키워드 추출
-        - 월간 검색량, 경쟁정도, 평균 입찰가 분석
-        - 관련성 점수를 통한 키워드 우선순위 제공
-        
-        **🎯 활용법**
-        - 광고 키워드 발굴 및 확장
-        - 키워드별 광고비 예산 계획
-        - 마케팅 전략 수립
-        """)
-        
-        st.markdown("---")
-        
-        # 쇼핑 순위 리스트
-        st.markdown("### 📊 쇼핑 순위 리스트")
-        st.markdown("""
-        **📋 주요 기능**
-        - 네이버 쇼핑 인기 상품 순위 조회
-        - 가격대별 분석 및 쇼핑몰 분포
-        - 상품별 상세 정보 제공
-        
-        **🎯 활용법**
-        - 시장 트렌드 파악
-        - 경쟁사 분석
-        - 상품 기획 및 가격 정책
-        """)
-        
-        st.markdown("---")
-        
-        # 키워드 분석
-        st.markdown("### 🎯 키워드 분석")
-        st.markdown("""
-        **📋 주요 기능**
-        - 네이버 키워드 도구 API 활용
-        - PC/모바일별 상세 검색량 분석
-        - 클릭률, 경쟁정도, 광고 노출수
-        
-        **🎯 활용법**
-        - 키워드별 성과 예측
-        - ROI 계산 및 최적화
-        - 광고 전략 수립
-        """)
         
         st.markdown("---")
         
@@ -207,6 +145,11 @@ def main():
         st.title("🎯 키워드 분석")
         st.markdown("네이버 키워드 도구를 통해 상세한 키워드 분석을 제공합니다.")
         show_keyword_analysis()
+        
+    elif st.session_state.current_page == 'content_rewriter':
+        st.title("🤖 AI 카피라이터")
+        st.markdown("구글 제미나이 AI를 활용하여 전문적인 글 재작성을 제공합니다.")
+        show_content_rewriter()
     
     # 푸터
     show_footer()

@@ -10,7 +10,7 @@ def show_login_page():
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     
     st.markdown('<div class="login-header">', unsafe_allow_html=True)
-    st.markdown("# 🔐 chaechaeLab")
+    st.markdown("# � chaechaeLab")
     st.markdown("### 마케팅 도구 로그인")
     st.markdown('</div>', unsafe_allow_html=True)
     
