@@ -112,16 +112,27 @@ def analyze_shopping_trends(rankings):
 
 def show_shopping_ranking():
     """쇼핑 순위 리스트 페이지"""
-    st.header("🛍️ 쇼핑 순위 리스트")
+    
+    # 기능 설명
+    st.markdown("""
+    ### � 기능 설명
+    - **인기 상품 순위**: 네이버 쇼핑의 실시간 인기 상품 조회
+    - **가격대별 분석**: 최저가, 평균가, 최고가 분석
+    - **쇼핑몰 분포**: 상위 랭킹 상품의 쇼핑몰 분포 현황
+    - **시장 트렌드**: 상품별 가격 동향 및 판매자 분석
+    """)
+    
+    st.markdown("---")
     
     # 검색 폼
+    st.subheader("🔍 상품 검색 설정")
     with st.form("shopping_ranking_form"):
-        col1, col2 = st.columns([3, 1])
+        col1, col2, col3 = st.columns([2, 1, 1])
         
         with col1:
             keyword = st.text_input(
                 "상품 검색어 입력",
-                placeholder="예: 무선키보드",
+                placeholder="예: 무선키보드, 블루투스 이어폰, 게이밍 헤드셋",
                 help="네이버 쇼핑에서 검색할 상품명을 입력하세요"
             )
         
@@ -133,10 +144,25 @@ def show_shopping_ranking():
                 help="조회할 최대 상품 개수"
             )
         
-        search_button = st.form_submit_button("🔍 쇼핑 순위 조회", type="primary", width="stretch")
+        with col3:
+            sort_option = st.selectbox(
+                "정렬 방식",
+                options=["sim", "date", "asc", "dsc"],
+                format_func=lambda x: {
+                    "sim": "정확도순", 
+                    "date": "날짜순", 
+                    "asc": "가격낮은순", 
+                    "dsc": "가격높은순"
+                }[x],
+                help="검색 결과 정렬 방식"
+            )
+        
+        search_button = st.form_submit_button("🔍 쇼핑 순위 조회", type="primary", use_container_width=True)
+    
+    st.markdown("---")
     
     if search_button and keyword:
-        st.header(f"📊 '{keyword}' 쇼핑 순위 리스트")
+        st.markdown(f"## 📊 '{keyword}' 쇼핑 순위 리스트")
         
         with st.spinner("쇼핑 순위를 조회하는 중..."):
             rankings = get_shopping_ranking(keyword, max_results)
