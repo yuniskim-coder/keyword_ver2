@@ -157,7 +157,7 @@ def show_shopping_ranking():
                 help="검색 결과 정렬 방식"
             )
         
-        search_button = st.form_submit_button("🔍 쇼핑 순위 조회", type="primary", use_container_width=True)
+        search_button = st.form_submit_button("🔍 쇼핑 순위 조회", type="primary", width="stretch")
     
     st.markdown("---")
     

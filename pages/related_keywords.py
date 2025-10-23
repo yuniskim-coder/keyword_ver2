@@ -196,7 +196,7 @@ def show_related_keywords():
         search_button = st.form_submit_button(
             "🔍 파워링크 연관키워드 조회", 
             type="primary",
-            use_container_width=True
+            width="stretch"
         )
     
     st.markdown("---")
@@ -244,7 +244,7 @@ def show_related_keywords():
                     })
                 
                 df = pd.DataFrame(table_data)
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.dataframe(df, width=None, hide_index=True)
                 
                 # 차트 분석
                 st.markdown("### 📊 키워드 분석 차트")

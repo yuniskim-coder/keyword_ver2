@@ -131,7 +131,7 @@ def display_detailed_stats(data):
                 format_number(data['monthly_pc_ad_exposure'])
             ]
         })
-        st.dataframe(pc_df, use_container_width=True, hide_index=True)
+        st.dataframe(pc_df, width=None, hide_index=True)
     
     with col2:
         st.markdown("#### 📱 모바일 지표")
@@ -144,7 +144,7 @@ def display_detailed_stats(data):
                 format_number(data['monthly_mobile_ad_exposure'])
             ]
         })
-        st.dataframe(mobile_df, use_container_width=True, hide_index=True)
+        st.dataframe(mobile_df, width=None, hide_index=True)
 
 
 def display_comparison_chart(data):
@@ -224,7 +224,7 @@ def show_keyword_analysis():
         
         st.markdown("� **분석 항목**: 검색량 → 클릭률 → 경쟁정도 → 광고노출수 → 수익성 예측")
         
-        search_button = st.form_submit_button("🔍 키워드 분석 시작", type="primary", use_container_width=True)
+        search_button = st.form_submit_button("🔍 키워드 분석 시작", type="primary", width="stretch")
     
     st.markdown("---")
     

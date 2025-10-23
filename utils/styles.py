@@ -115,6 +115,31 @@ def apply_custom_css():
     [data-testid="stSidebarNav"] {{
         order: 2 !important;
     }}
+
+    /* 사이드바 하단 기본 네비게이션 버튼들 숨기기 */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {{
+        display: none !important;
+    }}
+
+    /* 사이드바 네비게이션 링크들 숨기기 */
+    section[data-testid="stSidebar"] nav {{
+        display: none !important;
+    }}
+
+    /* 사이드바 하단 페이지 링크들 제거 */
+    section[data-testid="stSidebar"] .css-1544g2n {{
+        display: none !important;
+    }}
+
+    /* 사이드바 하단 기본 네비게이션 전체 숨기기 */
+    section[data-testid="stSidebar"] ul {{
+        display: none !important;
+    }}
+
+    /* 페이지 네비게이션 리스트 아이템 숨기기 */
+    section[data-testid="stSidebar"] li {{
+        display: none !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 

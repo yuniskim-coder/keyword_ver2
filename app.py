@@ -24,25 +24,49 @@ from pages.keyword_analysis import show_keyword_analysis
 from utils.styles import apply_custom_css, show_footer
 
 
+def show_main_header():
+    """메인 프로그램 헤더 표시"""
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h1 style="font-size: 2.5rem; font-weight: 700; color: #333; margin-bottom: 0.5rem;">
+            🛍️ 네이버 쇼핑 순위 확인 도구
+        </h1>
+        <p style="font-size: 1.1rem; color: #666; margin: 0; font-weight: 400;">
+            by chaechaeLab
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def show_sidebar():
     """사이드바 메뉴 표시"""
     with st.sidebar:
         st.title("🔍 chaechaeLab")
+        
+        # 로그인된 사용자 정보 표시 (사이드바 상단)
+        st.markdown(f'<div class="login-welcome">👋 환영합니다, {st.session_state.username}님!</div>', 
+                   unsafe_allow_html=True)
+        
+        # 로그아웃 버튼
+        if st.button("🚪 로그아웃", width="stretch", key="sidebar_logout"):
+            from modules.auth import logout
+            logout()
+        
         st.markdown("---")
         
         # 페이지 버튼들 (각각 독립적)
         st.subheader("📋 메뉴")
         
-        if st.button("🎯 순위 확인", use_container_width=True):
+        if st.button("🎯 순위 확인", width="stretch"):
             st.session_state.current_page = 'rank_checker'
         
-        if st.button("🔗 연관키워드 조회", use_container_width=True):
+        if st.button("🔗 연관키워드 조회", width="stretch"):
             st.session_state.current_page = 'related_keywords'
             
-        if st.button("📊 쇼핑 순위 리스트", use_container_width=True):
+        if st.button("📊 쇼핑 순위 리스트", width="stretch"):
             st.session_state.current_page = 'shopping_ranking'
             
-        if st.button("🎯 키워드 분석", use_container_width=True):
+        if st.button("🎯 키워드 분석", width="stretch"):
             st.session_state.current_page = 'keyword_analysis'
         
         st.markdown("---")
@@ -160,8 +184,8 @@ def main():
     # 사이드바 메뉴 표시
     show_sidebar()
     
-    # 로그인된 사용자 정보 표시 (상단)
-    show_user_info()
+    # 메인 프로그램 헤더 표시
+    show_main_header()
     
     # 선택된 페이지에 따라 컨텐츠 표시
     if st.session_state.current_page == 'rank_checker':
