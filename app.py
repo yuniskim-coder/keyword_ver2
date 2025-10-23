@@ -17,6 +17,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from config import PAGE_CONFIG
 from modules.auth import init_session_state, is_logged_in
 from pages.login import show_login_page, show_user_info
+from pages.rank_checker import show_rank_checker
 from pages.related_keywords import show_related_keywords
 from pages.shopping_ranking import show_shopping_ranking
 from pages.keyword_analysis import show_keyword_analysis
@@ -26,72 +27,103 @@ from utils.styles import apply_custom_css, show_footer
 def show_sidebar():
     """사이드바 메뉴 표시"""
     with st.sidebar:
-        st.title("� chaechaeLab")
+        st.title("🔍 chaechaeLab")
         st.markdown("---")
         
-        # 메뉴 선택
-        menu_options = {
-            "🔗 연관키워드 조회": "related_keywords", 
-            "📊 쇼핑 순위 리스트": "shopping_ranking",
-            "🎯 키워드 분석": "keyword_analysis"
+        # 페이지 버튼들 (각각 독립적)
+        st.subheader("📋 메뉴")
+        
+        if st.button("🎯 순위 확인", use_container_width=True):
+            st.session_state.current_page = 'rank_checker'
+        
+        if st.button("🔗 연관키워드 조회", use_container_width=True):
+            st.session_state.current_page = 'related_keywords'
+            
+        if st.button("📊 쇼핑 순위 리스트", use_container_width=True):
+            st.session_state.current_page = 'shopping_ranking'
+            
+        if st.button("🎯 키워드 분석", use_container_width=True):
+            st.session_state.current_page = 'keyword_analysis'
+        
+        st.markdown("---")
+        
+        # 현재 선택된 페이지 표시
+        current_page_names = {
+            'rank_checker': '🎯 순위 확인',
+            'related_keywords': '🔗 연관키워드 조회',
+            'shopping_ranking': '📊 쇼핑 순위 리스트',
+            'keyword_analysis': '🎯 키워드 분석'
         }
         
-        selected_menu = st.selectbox(
-            "메뉴 선택",
-            options=list(menu_options.keys()),
-            index=0,
-            key="menu_selection"
-        )
-        
-        st.session_state.current_page = menu_options[selected_menu]
+        current_page = st.session_state.get('current_page', 'rank_checker')
+        st.info(f"**현재 페이지**: {current_page_names.get(current_page, '알 수 없음')}")
         
         st.markdown("---")
         
-        # 선택된 메뉴에 따른 기능 설명
-        if st.session_state.current_page == "related_keywords":
-            st.subheader("�🔗 연관키워드 조회")
-            st.markdown("""
-            **📋 주요 기능**
-            - 파워링크 캠페인 기반 연관키워드 추출
-            - 월간 검색량, 경쟁정도, 평균 입찰가 분석
-            - 관련성 점수를 통한 키워드 우선순위 제공
-            - 마케팅 전략 수립에 활용
-            
-            **� 사용법**
-            1. 기준 키워드 입력
-            2. 연관키워드 조회 버튼 클릭
-            3. 결과를 통해 광고 전략 수립
-            """)
-            
-        elif st.session_state.current_page == "shopping_ranking":
-            st.subheader("📊 쇼핑 순위 리스트")
-            st.markdown("""
-            **📋 주요 기능**
-            - 네이버 쇼핑 인기 상품 순위 조회
-            - 가격대별 분석 및 쇼핑몰 분포
-            - 상품별 상세 정보 제공
-            - 시장 트렌드 파악 가능
-            
-            **💡 사용법**
-            1. 조회할 키워드 입력
-            2. 쇼핑 순위 조회 버튼 클릭
-            3. 상위 랭킹 상품 분석
-            """)
-            
-        elif st.session_state.current_page == "keyword_analysis":
-            st.subheader("🎯 키워드 분석")
-            st.markdown("""
-            **📋 주요 기능**
-            - 네이버 키워드 도구 API 활용
-            - 상세 검색량, 클릭률, 경쟁정도 분석
-            - PC/모바일별 광고 노출 데이터
-            - 키워드별 성과 예측 정보
-            
-            **💡 사용법**
-            1. 분석할 키워드 입력
-            2. 키워드 분석 버튼 클릭
-            3. 상세 분석 결과 검토
-            """)
+        # 전체 메뉴 기능 개요
+        st.subheader("🛠️ 제공 기능")
+        
+        # 순위 확인
+        st.markdown("### 🎯 순위 확인")
+        st.markdown("""
+        **📋 주요 기능**
+        - 네이버 쇼핑에서 특정 판매처의 상품 순위 확인
+        - 최대 10개 키워드 동시 검색 가능
+        - 1~1000위까지 정확한 순위 분석
+        
+        **🎯 활용법**
+        - 경쟁사 분석
+        - 자사 상품 위치 파악
+        - 마케팅 효과 측정
+        """)
+        
+        st.markdown("---")
+        
+        # 연관키워드 조회
+        st.markdown("### 🔗 연관키워드 조회")
+        st.markdown("""
+        **📋 주요 기능**
+        - 파워링크 캠페인 기반 연관키워드 추출
+        - 월간 검색량, 경쟁정도, 평균 입찰가 분석
+        - 관련성 점수를 통한 키워드 우선순위 제공
+        
+        **🎯 활용법**
+        - 광고 키워드 발굴 및 확장
+        - 키워드별 광고비 예산 계획
+        - 마케팅 전략 수립
+        """)
+        
+        st.markdown("---")
+        
+        # 쇼핑 순위 리스트
+        st.markdown("### 📊 쇼핑 순위 리스트")
+        st.markdown("""
+        **📋 주요 기능**
+        - 네이버 쇼핑 인기 상품 순위 조회
+        - 가격대별 분석 및 쇼핑몰 분포
+        - 상품별 상세 정보 제공
+        
+        **🎯 활용법**
+        - 시장 트렌드 파악
+        - 경쟁사 분석
+        - 상품 기획 및 가격 정책
+        """)
+        
+        st.markdown("---")
+        
+        # 키워드 분석
+        st.markdown("### 🎯 키워드 분석")
+        st.markdown("""
+        **📋 주요 기능**
+        - 네이버 키워드 도구 API 활용
+        - PC/모바일별 상세 검색량 분석
+        - 클릭률, 경쟁정도, 광고 노출수
+        
+        **🎯 활용법**
+        - 키워드별 성과 예측
+        - ROI 계산 및 최적화
+        - 광고 전략 수립
+        """)
         
         st.markdown("---")
         
@@ -115,7 +147,7 @@ def main():
     
     # 현재 페이지 세션 상태 초기화
     if 'current_page' not in st.session_state:
-        st.session_state.current_page = 'related_keywords'
+        st.session_state.current_page = 'rank_checker'
     
     # 커스텀 CSS 적용
     apply_custom_css()
@@ -132,7 +164,12 @@ def main():
     show_user_info()
     
     # 선택된 페이지에 따라 컨텐츠 표시
-    if st.session_state.current_page == 'related_keywords':
+    if st.session_state.current_page == 'rank_checker':
+        st.title("🎯 순위 확인")
+        st.markdown("네이버 쇼핑에서 특정 판매처의 상품 순위를 확인합니다.")
+        show_rank_checker()
+        
+    elif st.session_state.current_page == 'related_keywords':
         st.title("🔗 연관키워드 조회")
         st.markdown("파워링크 캠페인 기반으로 연관키워드를 분석합니다.")
         show_related_keywords()

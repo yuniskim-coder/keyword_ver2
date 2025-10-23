@@ -76,6 +76,45 @@ def apply_custom_css():
         text-align: center;
         margin-bottom: 1rem;
     }}
+
+    /* 사이드바 레이아웃 순서 변경 - 더 구체적인 선택자 */
+    section[data-testid="stSidebar"] .st-emotion-cache-8atqhb.e4man115 {{
+        display: flex !important;
+        flex-direction: column-reverse !important;
+    }}
+
+    /* 전체 사이드바 컨테이너 flex 설정 */
+    section[data-testid="stSidebar"] > div {{
+        display: flex !important;
+        flex-direction: column !important;
+    }}
+
+    /* 사이드바 내 모든 직접 자식 요소들 순서 재배치 */
+    section[data-testid="stSidebar"] > div > div {{
+        display: flex !important;
+        flex-direction: column !important;
+    }}
+
+    /* stSidebarNav 요소를 하단으로 */
+    section[data-testid="stSidebar"] [data-testid="stSidebarNav"] {{
+        order: 999 !important;
+        margin-top: auto !important;
+    }}
+
+    /* 메뉴 버튼들이 포함된 메인 콘텐츠를 상단으로 */
+    section[data-testid="stSidebar"] .st-emotion-cache-8atqhb {{
+        order: 1 !important;
+        flex: 1 !important;
+    }}
+
+    /* 특정 클래스를 가진 요소의 순서 강제 변경 */
+    .st-emotion-cache-8atqhb.e4man115 {{
+        order: 1 !important;
+    }}
+
+    [data-testid="stSidebarNav"] {{
+        order: 2 !important;
+    }}
     </style>
     """, unsafe_allow_html=True)
 
