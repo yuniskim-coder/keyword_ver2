@@ -19,7 +19,7 @@ VALID_CREDENTIALS = {
 # 페이지 설정
 PAGE_CONFIG = {
     "page_title": "chaechaeLab 마케팅 도구",
-    "page_icon": "🔍",
+    "page_icon": "favicon.ico",
     "layout": "wide"
 }
 
